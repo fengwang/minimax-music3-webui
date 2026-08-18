@@ -191,6 +191,8 @@ expose the port to an untrusted network. There is no rate limiting, quota, or ac
 
 ## Licence
 
+This source code in this repo is **MIT** (SPDX: `MIT`), but the model weights are **not**.
+
 MiniMax-Music3 is released under the custom **"MiniMax-Music3 COMMUNITY LICENSE"** (no SPDX identifier); the
 full text ships with the weights (`LICENSE` in the model directory). Self-hosting is permitted **subject to
 all of the following obligations**, which bind this deployment (F16/E-19, R-15):
