@@ -20,7 +20,7 @@ Two containers, launched by one compose file:
 | `minimax-music3-sglang` | The SGLang-Omni GPU engine. Its port is **never** published to the host; only the app reaches it, on the compose network. |
 
 The app also starts and stops the GPU container to free VRAM when idle, over a bind-mounted
-`/var/run/docker.sock` confined to a fixed verb allow-list against the one fixed container name (INV-5).
+`/var/run/docker.sock` confined to a fixed verb allow-list against the one fixed container name.
 
 ## Requirements
 
@@ -28,7 +28,7 @@ The app also starts and stops the GPU container to free VRAM when idle, over a b
   Docker + Docker Compose, and ffmpeg. A different GPU is out of scope.
 - The **MiniMax-Music3 weights on local disk** (the 7-component pipeline directory containing
   `modular_model_index.json`). They are bind-mounted **read-only**; no weight file is ever baked into an
-  image (INV-2). The weights are **not** distributed with this repository.
+  image. The weights are **not** distributed with this repository.
 
 ## Quick start (from a clean checkout)
 
@@ -44,10 +44,9 @@ Both services reach running state with no edit to any file other than `.env`. Op
 `http://<host>:8080/` in a browser (replace `<host>` with the machine's LAN address), type a caption and
 lyrics, and generate. The first request after an idle period pays a full model reload — the UI shows a
 distinct **warming** state while the GPU container starts (there is no sleep mode; stopping the container is
-the only way to free VRAM, so every cold start reloads the model — R-05).
+the only way to free VRAM, so every cold start reloads the model).
 
-Bring it down with `docker compose -f deploy/docker-compose.yml down` (this is also the only way to free
-the GPU's VRAM).
+Bring it down with `docker compose -f deploy/docker-compose.yml down`.
 
 ## Configuration
 
@@ -55,14 +54,13 @@ the GPU's VRAM).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `MUSIC3_WEIGHTS_DIR` | `/data/models/MiniMax-Music3` | Host weights directory, bind-mounted read-only (INV-2). Must contain `modular_model_index.json`. |
+| `MUSIC3_WEIGHTS_DIR` | `/data/models/MiniMax-Music3` | Host weights directory, bind-mounted read-only. Must contain `modular_model_index.json`. |
 | `MUSIC3_ARTIFACTS_HOST_DIR` | `/data/minimax-music3/artifacts` | Host directory where generated audio + sidecar JSON persist (read-write). |
 | `MUSIC3_BIND_ADDR` | `0.0.0.0` | Host interface the app port binds to. `0.0.0.0` = LAN-reachable (see the security notice); `127.0.0.1` = this host only. |
 | `MUSIC3_APP_PORT` | `8080` | Host port the app is published on. |
 
 Both `MUSIC3_WEIGHTS_DIR` and `MUSIC3_ARTIFACTS_HOST_DIR` carry a **stale bind-mount warning** in
-`.env.example`: Docker silently bind-mounts a wrong or missing path, so verify each path exists first
-(R-11).
+`.env.example`: Docker silently bind-mounts a wrong or missing path, so verify each path exists first.
 
 ## Typical Usage with Your Agent
 
@@ -84,26 +82,6 @@ Were any problems arise during the process, please ask me immediately.
 ```
 
 
-## Acceptance demonstration
-
-The project's definition of success is one owner-run, end-to-end demonstration from a clean checkout
-(GATE-S7):
-
-1. `cp .env.example .env` and bring the stack up with the one compose command above.
-2. From **another machine on the LAN**, open the WebUI and generate a **full-length** song (about five
-   minutes, not a 60-second clip). Playable audio is returned in the browser.
-3. From the same machine, generate again through `POST /v1/music_generation`; the response envelope matches
-   the cloud schema with `base_resp.status_code` 0.
-4. Re-run one request with the same seed and inputs: the audio file is **byte-identical** by checksum
-   (seed determinism was measured true; INV-10).
-5. Inspect the host artifacts directory: one audio file plus one sidecar JSON per generation, the sidecar
-   carrying engine identity/version, every request parameter, the seed, and wall-clock timings (INV-9).
-6. Leave the service idle, then send one more request: `nvidia-smi` shows VRAM released while idle, and the
-   next request succeeds with **no** manual `docker start` (the app cold-starts the engine itself).
-
-The owner then listens to the full-length result and judges quality — a human judgement (D12), not a
-metric. No automated audio-quality score is in scope.
-
 ## API compatibility
 
 `POST /v1/music_generation` accepts and returns the MiniMax cloud envelope. `music-3.0` is the **only**
@@ -117,17 +95,17 @@ accepted `model` id.
   `lyrics_optimizer`, `is_instrumental`, `cover_feature_id`, `audio_url`, `audio_base64`, and every
   `model` id other than `music-3.0` (`music-2.6`, `music-cover`, `music-3.0-free`, `music-2.6-free`,
   `music-cover-free`). A field that is absent or carries its documented cloud default is accepted as a
-  no-op. (INV-7.)
+  no-op.
 - **Two additive optional fields** extend the cloud schema: `seed` (int) and `max_new_tokens` (int, acoustic
   frames at 25 fps, maximum 9000). Cloud clients never send them; their absence leaves cloud behaviour
   unchanged.
 
-The WebUI never calls this blocking route (INV-12); it submits a job, streams progress, and can cancel.
+The WebUI never calls this blocking route; it submits a job, streams progress, and can cancel.
 
 ## Behaviour and deliberate divergences from the cloud spec
 
 - **No link expiry, no TTL reaper.** `url` artifacts persist until you delete them — a documented divergence
-  from the cloud spec's 24-hour URL expiry (D6). Retention is manual; no artifact is ever deleted by this
+  from the cloud spec's 24-hour URL expiry. Retention is manual; no artifact is ever deleted by this
   service.
 - **Client read timeout.** `POST /v1/music_generation` is blocking. A blocking client must set a read
   timeout of **at least 1200 seconds** on an otherwise idle system (the model authors' own test client
@@ -135,20 +113,20 @@ The WebUI never calls this blocking route (INV-12); it submits a job, streams pr
   measured or promised generation time — no generation-latency figure is published. With concurrency one, a
   queued caller additionally waits out the render ahead of it plus any cold start, so its total wall clock
   can far exceed 1200 s; use the job-submit + progress path if you cannot block.
-- **Concurrency is exactly one.** At most one generation runs at any moment (INV-1); a second submission
+- **Concurrency is exactly one.** At most one generation runs at any moment; a second submission
   queues.
 - **Seed determinism holds.** Identical seed, inputs, `max_new_tokens`, and engine version reproduce a
-  byte-identical WAV (INV-10), measured true on this stack.
+  byte-identical WAV, measured true on this stack.
 
 ## Engine and backend
 
-The GPU kernel/attention backend is **explicitly set and recorded** — auto-selection is forbidden (INV-3).
+The GPU kernel/attention backend is **explicitly set and recorded** — auto-selection is forbidden.
 It is pinned in the committed serving config `deploy/sglang/pipeline.yaml` (passed to the engine as
 `--config`; there is no CLI flag for it), and confirmed in force from the engine's startup merged-config
 print on this `sm_120` (Blackwell) card:
 
 - **Autoregressive (Qwen3 backbone) stage:** `attention_backend: triton` — chosen because FlashInfer has
-  open sm_120 correctness bugs and `trtllm_mha` is SM100-only (E-11/E-12). The backbone is fp8-quantized
+  open sm_120 correctness bugs and `trtllm_mha` is SM100-only. The backbone is fp8-quantized
   (`fp8_gemm_runner_backend: triton`) so it stays resident without PCIe offload.
 - **Acoustic (flow-matching DIT + DAV) stage:** `attention_backend: torch_sdpa` — sm_120-portable PyTorch
   SDPA; this stage stays fp32 to preserve acoustic quality.
@@ -169,13 +147,13 @@ From the repo root (`Makefile`):
 | `make up` / `make down` | Bring the stack up / down (`down` is the only way to free VRAM). |
 | `make health` | Poll engine readiness via `/v1/models` (never `/health`, which triggers a real generation — INV-6). |
 | `make smoke [FRAMES=n SEED=n]` | Run the authors' end-to-end generation harness inside the GPU container. |
-| `make scan` | Fail if any Dockerfile would copy a weight file into an image (INV-2). |
+| `make scan` | Fail if any Dockerfile would copy a weight file into an image. |
 
 ---
 
 ## ⚠ Security: unauthenticated and LAN-reachable
 
-**This service has NO authentication.** By owner decision (D5) it binds all interfaces (`0.0.0.0`) by
+**This service has NO authentication.** By owner decision it binds all interfaces (`0.0.0.0`) by
 default so the WebUI is reachable from other machines on your LAN — this is an **accepted risk (R-09)**, not
 an oversight. Anyone who can reach the port can generate audio, control the GPU container's lifecycle, and
 read every artifact. At startup the app logs exactly this, e.g.:
@@ -195,11 +173,10 @@ This source code in this repo is **MIT** (SPDX: `MIT`), but the model weights ar
 
 MiniMax-Music3 is released under the custom **"MiniMax-Music3 COMMUNITY LICENSE"** (no SPDX identifier); the
 full text ships with the weights (`LICENSE` in the model directory). Self-hosting is permitted **subject to
-all of the following obligations**, which bind this deployment (F16/E-19, R-15):
+all of the following obligations**, which bind this deployment:
 
 1. **Prominent attribution.** You must prominently display **"MiniMax-Music3"** on the user interface of any
-   commercial product or service built on it. This WebUI shows the string in an always-visible region
-   (INV-11).
+   commercial product or service built on it. This WebUI shows the string in an always-visible region.
 2. **Acceptable Use Policy (Exhibit A) — 19 categories.** You must comply with the AUP. You must **not** use
    the software or its outputs to: (1) violate any applicable law or regulation; (2) harm yourself or
    others; (3) generate, repurpose or distribute content to harm yourself or others; (4) circumvent or
@@ -223,6 +200,6 @@ all of the following obligations**, which bind this deployment (F16/E-19, R-15):
    safeguards** to prevent infringing or otherwise unlawful output, and you must **not** knowingly disable,
    weaken, or permit circumvention of those safeguards.
 
-This project performs no automated content classification (D12 scope); the safeguards obligation above is
+This project performs no automated content classification; the safeguards obligation above is
 therefore the operator's responsibility for any multi-user or hosted exposure.
 
