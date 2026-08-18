@@ -1,0 +1,104 @@
+# sglang (GPU engine) + app (S5). Shared-file ownership (project_contract §9): created in S1 with the
+# sglang service only; extended
+# in S1B (only if GATE-S1 fails) and in S5 (app service + docker.sock); finalised in S7.
+# Invoke from the repo root: `docker compose -f deploy/docker-compose.yml <cmd>` (project dir = deploy/,
+# so `.` build context = deploy/ and `./sglang/pipeline.yaml` = deploy/sglang/pipeline.yaml).
+services:
+  sglang:
+    build:
+      context: .
+      dockerfile: sglang.Dockerfile
+    image: minimax-music3-sglang:local
+    container_name: minimax-music3-sglang        # fixed name (INV-5 owner); reached via `exec`
+    command:
+      - sgl-omni
+      - serve
+      - --model-path
+      - /models/MiniMax-Music3
+      - --config
+      - /config/pipeline.yaml
+      - --port
+      - "8000"
+      - --max-running-requests
+      - "1"                                        # INV-1 — visible in `docker compose config`
+      - --mem-fraction-static
+      - "0.80"                                     # 32 GB KV-pool tuning: with the fp8 backbone (~9.5 GB) + fp32 DIT
+                                                   # (~9.2 GB) resident, 0.80 gives a ~27k-token pool (>= 2 CFG rows x 9000)
+                                                   # with ~3 GB VRAM headroom. Recorded in docs/session_1/optimization.md.
+      # POST-GATE OPTIMIZATION: --cpu-offload-gb removed. It streamed backbone weights over PCIe on every decode
+      # step (~126 ms/frame, PCIe-bound at ~150 W GPU). VRAM is freed instead by fp8-quantizing the AR backbone
+      # (deploy/sglang/pipeline.yaml: quantization=fp8 + fp8_gemm_backend=triton), keeping the DIT fp32, so the
+      # whole backbone stays resident and decode is compute-bound.
+      # The gate-approved offload config is preserved in git (commit e3c2ec0) as the proven fallback.
+    environment:
+      CUDA_VISIBLE_DEVICES: "0"                    # single-GPU launch (E-08)
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True   # reduce fragmentation at the 32 GB edge (F20/E-23)
+    volumes:
+      - ${MUSIC3_WEIGHTS_DIR:-/data/models/MiniMax-Music3}:/models/MiniMax-Music3:ro   # INV-2 read-only
+      - ./sglang/pipeline.yaml:/config/pipeline.yaml:ro                                 # INV-3 record
+      # Read-only overlay of the backbone config, normalized (model_type: mixtral -> qwen3) exactly as
+      # the engine's _normalize_backbone_config would rewrite it. Mounting a pre-normalized copy :ro
+      # over the original makes that startup rewrite a no-op (idempotent), so the read-only weights dir
+      # is never written (INV-2 preserved; owner weights untouched). See docs/session_1_measurements.md.
+      - ./sglang/qwen3-backbone-config.json:/models/MiniMax-Music3/qwen_7B/qwen_7B/config.json:ro
+    cap_add:
+      - SYS_PTRACE                                 # sglang-omni's multi-process stage runner passes fds
+                                                   # between the AR and DIT/DAV processes via pidfd_getfd,
+                                                   # which Docker's default seccomp blocks without CAP_SYS_PTRACE
+    shm_size: "16gb"                               # avoid SIGBUS from Docker's 64 MB /dev/shm (F20/E-23)
+    restart: "unless-stopped"                      # manual lifecycle; clean cold-start timing (R-05)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # No `ports:` — container port 8000 is NEVER published to the host (reached via `docker compose exec`).
+    # No `depends_on` service_healthy — readiness is app-level via /v1/models (INV-6, E-15).
+
+  # ── App service (S5 extension; finalised S7) ──────────────────────────────────────────────────────
+  # Per project_contract §9 (created S1, extended S5, finalised S7). S5 added the service definition (the
+  # docker.sock mount + lifecycle env vars); S7 created its build input deploy/app.Dockerfile and finalised
+  # the artifacts mount, the bind-addr + published-port env surface, and an explicit /dev/shm size. It runs as
+  # ROOT to reach the mounted socket — root-equivalent by R-10 regardless of uid; the real control is
+  # INV-5's committed verb allow-list + single fixed container name (api/lifecycle/controller.py), not uid.
+  app:
+    build:
+      context: ..                                # repo ROOT so app.Dockerfile's COPY api/ + manifests resolve
+      dockerfile: deploy/app.Dockerfile          # created in S7 (project_contract §9); path is context-relative
+    image: minimax-music3-app:local
+    container_name: minimax-music3-app           # D4 fixed name
+    environment:
+      # Lifecycle knobs consumed by api/lifecycle (controller + readiness). Provenance: S1 measurements —
+      # cold start 87 s -> 180 s readiness budget; idle 600 s frees VRAM (F11/R-05); poll 3 s.
+      MUSIC3_LIFECYCLE_ENABLED: "1"               # enable the fixed-verb docker.sock controller (INV-5)
+      MUSIC3_DOCKER_SOCKET: /var/run/docker.sock
+      MUSIC3_READINESS_TIMEOUT_SECONDS: "180"
+      MUSIC3_IDLE_TIMEOUT_SECONDS: "600"
+      MUSIC3_READINESS_POLL_SECONDS: "3"
+      MUSIC3_ENGINE_BASE_URL: http://sglang:8000  # readiness polls /v1/models here (INV-6); never /health
+      MUSIC3_BIND_ADDR: ${MUSIC3_BIND_ADDR:-0.0.0.0}
+      MUSIC3_APP_PORT: ${MUSIC3_APP_PORT:-8080}   # match the published host port so the INV-13 banner is
+                                                  # accurate if an operator overrides MUSIC3_APP_PORT (R1 LOW)
+      MUSIC3_ARTIFACTS_DIR: /srv/artifacts        # S7: the in-container artifacts root = the mount target
+                                                  # below. Set so the app persists audio + sidecar JSON
+                                                  # (INV-9); unset would disable persistence (main.py).
+    volumes:
+      # R-10: root-equivalent on the host. Mounted into the APP SERVICE ONLY (never the GPU service). The
+      # compensating controls are the fixed verb allow-list + single name constant + no client input
+      # (INV-5), enumerated in api/lifecycle/controller.py and reviewed at GATE-S5.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # S7: artifacts persist to the host (read-write — the app writes files + sidecars). The HOST path is
+      # the MUSIC3_ARTIFACTS_HOST_DIR knob; the container target is the fixed MUSIC3_ARTIFACTS_DIR above.
+      - ${MUSIC3_ARTIFACTS_HOST_DIR:-/data/minimax-music3/artifacts}:/srv/artifacts
+    shm_size: "2gb"                               # S7 (F20/E-23): the app streams full-length WAVs to the
+                                                  # ffmpeg subprocess (a process boundary); never rely on
+                                                  # Docker's 64 MB /dev/shm default. 2gb, not sglang's 16gb,
+                                                  # because the app has no multi-process GPU stage-runner.
+    ports:
+      - "${MUSIC3_BIND_ADDR:-0.0.0.0}:${MUSIC3_APP_PORT:-8080}:8080"  # LAN-exposed, UNAUTHENTICATED (D5/R-09)
+    restart: "unless-stopped"                     # manual lifecycle; the app idles the GPU container itself
+    # No `depends_on` service_healthy on sglang (INV-6): readiness is app-level via /v1/models, and the app
+    # cold-starts the engine itself through ensure_ready(). No start-order dependency either, so idle-down
+    # is not fought by compose restarting the GPU service.

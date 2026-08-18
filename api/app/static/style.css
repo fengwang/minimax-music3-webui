@@ -1,0 +1,256 @@
+/* Hand-written stylesheet for the MiniMax-Music3 WebUI. No preprocessor, no import at-rule, no remote
+   fonts or stylesheets. System fonts only, so the page loads with zero third-party requests
+   (P2-H4/P2-INV-2: no external origin).
+
+   Phase 2 / S1: a light, sage-tinted, fully tokenised theme (D-01, D-09). Every colour routes through a
+   semantic ROLE token declared in the sentinel-delimited :root block below (D-05); no colour literal, in
+   any notation, appears outside it. Hybrid posture (D-06): neumorphism owns DECORATIVE
+   elevation (panels, cards, the raised feel); FUNCTIONAL controls take flat high-contrast treatment — a
+   real --border-control boundary, real text contrast, a visible :focus-visible ring, and state never
+   carried by hue alone (a ::before glyph per [data-state]). Where softness and a floor conflict, the
+   floor wins: the lyric/caption fields carry visible borders on purpose (D-06, accepted price). */
+
+/* TOKENS:BEGIN */
+:root {
+  /* Surfaces — page/panel are owner anchors (D-09); the rest are S1 design work, all sage-tinted light. */
+  --surface-page: #DCE4DE;
+  --surface-panel: #E8EDE9;
+  --surface-raised: #EFF3EF;
+  --surface-sunken: #CBD5CE;
+  --surface-field: #F4F7F4;
+
+  /* Text — both held to body-text contrast (>=4.5:1) since hints are normal-size. */
+  --ink: #16211C;
+  --ink-muted: #455A50;
+
+  /* Boundaries — control is the functional 3:1 boundary; subtle is decorative only. */
+  --border-control: #3E5249;
+  --border-subtle: #C3D0C8;
+
+  /* Accent — fill anchor is fills ONLY (never text/border/ring); ink anchor is text/borders/focus rings. */
+  --accent-fill: #65B192;
+  --accent-ink: #2F6F5B;
+
+  /* Semantic state — each pairs with a non-hue ::before glyph in the status rules below. */
+  --state-ok: #1F6B47;
+  --state-warn: #A23A2A;
+  --state-warming: #7A5200;
+
+  /* Elevation — dual soft neumorphic shadows; the rgba() lives HERE so no colour leaks outside. */
+  --shadow-raised: 6px 6px 14px rgba(155, 170, 160, 0.55), -6px -6px 14px rgba(255, 255, 255, 0.85);
+  --shadow-raised-sm: 3px 3px 7px rgba(155, 170, 160, 0.5), -3px -3px 7px rgba(255, 255, 255, 0.8);
+  --shadow-sunken: inset 3px 3px 6px rgba(150, 165, 156, 0.55), inset -3px -3px 6px rgba(255, 255, 255, 0.75);
+
+  /* Geometry — replaces the six raw radius literals; a soft spacing scale. */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
+  --space-1: 0.25rem;
+  --space-2: 0.4rem;
+  --space-3: 0.6rem;
+  --space-4: 0.85rem;
+  --space-5: 1.1rem;
+  --space-6: 1.5rem;
+}
+/* TOKENS:END */
+
+* { box-sizing: border-box; }
+
+/* An author `display` rule (e.g. .params{display:flex}) otherwise beats the UA `[hidden]` rule, so make
+   the hidden attribute authoritative for every element the JS toggles with show(el, false). */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--surface-page);
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+/* Focus: one visible ring for every focusable control. The 2px outline-offset lifts the ring onto the
+   surrounding surface (accent-ink clears >=3.93:1 against every surface), so it stays legible even around
+   the mint primary button, whose fill contrasts only 2.33:1 with the ring. Mouse focus stays quiet. */
+:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.brand {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 0.2px;
+  color: var(--accent-ink);
+}
+.tagline { color: var(--ink-muted); }
+.badge {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.7rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+}
+@media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-raised);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+.col-right { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+.panel h2 { margin-top: 0; font-size: 1.1rem; }
+.panel h3 { margin-bottom: 0.3rem; }
+
+.controls { display: flex; flex-direction: column; gap: var(--space-2); }
+.controls label { font-weight: 600; font-size: 0.92rem; }
+.controls code {
+  color: var(--ink);
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-sunken);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+textarea, input[type="number"], input[type="search"], select {
+  width: 100%;
+  background: var(--surface-field);
+  color: var(--ink);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  font: inherit;
+}
+textarea { resize: vertical; }
+
+.row { display: flex; gap: var(--space-4); align-items: flex-end; margin-top: var(--space-2); }
+.field { display: flex; flex-direction: column; gap: var(--space-2); flex: 1; }
+
+.hint { color: var(--ink-muted); font-size: 0.85rem; margin: var(--space-1) 0; }
+.warn { color: var(--state-warn); font-weight: 600; margin: 0.3rem 0; }
+
+/* Functional controls stay FLAT (D-06): a real border, focus ring and text contrast, but no decorative
+   shadow — raised/sunken shadows are reserved for panels, cards and the inset chip. */
+button {
+  font: inherit;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-control);
+  padding: var(--space-3) var(--space-5);
+  background: var(--surface-raised);
+  color: var(--ink);
+  cursor: pointer;
+}
+button.primary { background: var(--accent-fill); color: var(--ink); font-weight: 700; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Status: colour + a distinct ::before glyph per state, so no two states differ by hue alone (floor 5).
+   The glyph is redundant with the label app.js sets, so screen-reader users lose nothing. Each content
+   string ends in \00a0 (a non-breaking space) to separate the glyph from that label. */
+.status { font-size: 1.1rem; font-weight: 600; }
+.status[data-state="idle"] { color: var(--ink-muted); }
+.status[data-state="idle"]::before { content: "\25CB\00a0"; }
+.status[data-state="queued"] { color: var(--ink-muted); }
+.status[data-state="queued"]::before { content: "\2026\00a0"; }
+.status[data-state="warming"] { color: var(--state-warming); }
+.status[data-state="warming"]::before { content: "\25D0\00a0"; }
+.status[data-state="unavailable"] { color: var(--state-warn); }
+.status[data-state="unavailable"]::before { content: "\26A0\00a0"; }
+.status[data-state="generating"] { color: var(--accent-ink); }
+.status[data-state="generating"]::before { content: "\25B8\00a0"; }
+.status[data-state="succeeded"] { color: var(--state-ok); }
+.status[data-state="succeeded"]::before { content: "\2713\00a0"; }
+.status[data-state="failed"] { color: var(--state-warn); }
+.status[data-state="failed"]::before { content: "\2715\00a0"; }
+.status[data-state="cancelled"] { color: var(--ink-muted); }
+.status[data-state="cancelled"]::before { content: "\2298\00a0"; }
+.status[data-state="cancelling"] { color: var(--ink-muted); }
+.status[data-state="cancelling"]::before { content: "\25CC\00a0"; }
+
+/* Two-phase progress (S3): an elapsed timer and an upper-bound ETA line, both temporal TEXT — no percentage
+   bar and no value-bearing progress indicator (P2-INV-5). State is carried by text, never by hue alone. */
+.progress { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-2) 0; }
+.elapsed { font-size: 1.4rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.eta { color: var(--ink-muted); font-size: 0.9rem; }
+.delivered { color: var(--ink); font-weight: 600; margin: 0.3rem 0; }
+
+audio { width: 100%; margin: var(--space-2) 0; }
+
+/* Client-side library filter (S5, FR-07): a FUNCTIONAL control (D-06) — the shared field styling above
+   gives it the real --border-control boundary and the global :focus-visible ring. It posts nothing (no
+   name attribute) and issues no request; app.js toggles row visibility over the already-fetched listing. */
+.filter { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+.filter label { font-weight: 600; font-size: 0.92rem; }
+.filter input { flex: 1; }
+
+.artifacts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.artifacts li {
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised-sm);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+.artifacts .meta { color: var(--ink-muted); font-size: 0.85rem; display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.artifacts .meta .k { color: var(--ink-muted); }
+.artifacts .meta .v { color: var(--ink); }
+.artifacts .actions { display: flex; gap: var(--space-3); margin-top: var(--space-2); }
+a { color: var(--accent-ink); }  /* global: routes EVERY link (incl. #result-download) through a token */
+.artifacts .row-error { color: var(--state-warn); font-size: 0.85rem; }
+.artifacts .preview { color: var(--ink-muted); font-size: 0.85rem; margin-top: var(--space-2); white-space: pre-wrap; word-break: break-word; }
+
+.params { margin-top: var(--space-3); font-size: 0.88rem; color: var(--ink-muted); display: flex; flex-direction: column; gap: 0.2rem; }
+.params span { color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+
+/* Persistent sticky mini-player (S4, FR-03/FR-04): one fixed bottom bar owning the native <audio>, the
+   Canvas waveform and the seek affordance. A STANDALONE element that leaves the layout to S5 — it adds no
+   column rule and no new breakpoint; the bottom padding that keeps the newest row clear of the bar is
+   reserved in app.js from the bar's measured height. z-index 2 lifts it above the artifact list. */
+.player {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-raised);
+  padding: var(--space-3) var(--space-6);
+}
+.player-inner { display: flex; flex-direction: column; gap: var(--space-2); max-width: 1100px; margin: 0 auto; }
+.player-row { display: flex; justify-content: space-between; gap: var(--space-4); align-items: baseline; }
+.player-title { color: var(--ink); font-weight: 600; font-size: 0.9rem; word-break: break-word; }
+.player-time { color: var(--ink-muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.player-error { color: var(--state-warn); font-weight: 600; margin: 0; }
+.player audio { width: 100%; margin: 0; }
+
+/* The seek affordance is FUNCTIONAL (D-06): a real --border-control boundary (>=3:1 on the bar surface) and
+   the inherited :focus-visible accent-ink ring (2px, offset 2px, >=3:1 vs both the control and the surface).
+   The waveform FILL is decorative; the playhead line and the fill are painted from role tokens in app.js, so
+   no colour literal appears here or there. */
+.waveform {
+  display: block;
+  width: 100%;
+  height: 64px;
+  background: var(--surface-field);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  touch-action: none;
+}

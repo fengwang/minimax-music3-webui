@@ -1,0 +1,46 @@
+[project]
+name = "minimax-music3-webui"
+version = "0.0.0"
+description = "MiniMax-Music3 local WebUI + cloud-compatible API (app container)."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+]
+
+# Torch-free, GPU-free tooling to lint and run the CPU test suite (D10, E-23).
+# Install in CI / on the host loop with `uv sync --frozen --group test-cpu`.
+[dependency-groups]
+test-cpu = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+]
+# S2 (D-10, FR-09): the browser harness group. It INCLUDES test-cpu so `--group test-ui` still carries
+# pytest, and adds Playwright and nothing else. Kept strictly separate from test-cpu so the inherited
+# `uv run pytest -m "not gpu"` gate never pulls Playwright or its ~150 MB browser download (C2-1). Run the
+# ui suite with `uv run --frozen --group test-ui pytest -m ui`; the browser is fetched once via
+# `playwright install chromium` (C2-2). Adding Playwright here is the HIGH-risk change gated by GATE-P2-S2.
+test-ui = [
+    { include-group = "test-cpu" },
+    "playwright>=1.47",
+]
+
+[tool.uv]
+# The app is run from PYTHONPATH (host) / COPY (image, S5), never pip-installed.
+package = false
+
+[tool.ruff]
+src = ["api", "tests"]
+line-length = 110
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["api"]
+addopts = "-q"
+asyncio_mode = "auto"
+markers = [
+    "gpu: requires the RTX 5090 and a reachable engine (deselected on the CPU host loop)",
+    "ui: requires Playwright and a browser from the test-ui group (deselected on the default gate; run with `-m ui`)",
+]

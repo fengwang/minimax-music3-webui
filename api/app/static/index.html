@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniMax-Music3 — local song generator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1 class="brand">MiniMax-Music3</h1>
+  <span class="tagline">local song generator</span>
+  <span id="engine-badge" class="badge" aria-live="polite">engine: …</span>
+</header>
+
+<main class="grid">
+  <!-- GENERATE -------------------------------------------------------------->
+  <section class="panel" aria-labelledby="gen-h">
+    <h2 id="gen-h">Generate</h2>
+    <div class="controls">
+      <label for="input">Lyrics (<code>input</code>)</label>
+      <textarea id="input" name="input" rows="6"
+        placeholder="[Verse]&#10;...">[Verse]
+</textarea>
+      <p class="hint">Put section tags on their own lines — for example
+        <code>[Verse]</code>, <code>[Chorus]</code> (also
+        <code>[Intro]</code>, <code>[Bridge]</code>, <code>[Outro]</code>).</p>
+
+      <label for="instructions">Music caption (<code>instructions</code>)</label>
+      <textarea id="instructions" name="instructions" rows="6"
+        placeholder="Global Metadata: ...&#10;Vocal Details: ...&#10;Arrangement: ..."></textarea>
+      <p class="hint">Use the Structured Caption form with three sections:
+        <strong>Global Metadata</strong>, <strong>Vocal Details</strong>, <strong>Arrangement</strong>.</p>
+      <p id="token-est" class="hint" aria-live="polite">~0 estimated tokens (limit 5,000)</p>
+      <p id="token-warning" class="warn" role="alert" hidden></p>
+
+      <label for="response_format">Output format (<code>response_format</code>)</label>
+      <select id="response_format" name="response_format">
+        <option value="wav" selected>WAV</option>
+      </select>
+      <p class="hint">The local engine returns WAV. Other containers (mp3, pcm) are a cloud-route feature,
+        not produced by this UI.</p>
+
+      <div class="row">
+        <span class="field">
+          <label for="seed">Seed (<code>seed</code>)</label>
+          <input id="seed" name="seed" type="number" min="0" step="1" value="0" inputmode="numeric">
+        </span>
+        <span class="field">
+          <label for="max_seconds">Maximum length (<code>seconds</code>)</label>
+          <input id="max_seconds" name="max_seconds" type="number" min="10" max="360" step="10"
+            value="300" inputmode="numeric">
+        </span>
+      </div>
+      <p class="hint">A <strong>maximum</strong>, not a promise — the song may finish sooner (delivered
+        length is shown on completion). Seconds at 25&nbsp;fps: <strong>10&nbsp;s</strong>&nbsp;≈&nbsp;250
+        frames, <strong>30&nbsp;s</strong>&nbsp;≈&nbsp;750 frames, up to
+        <strong>360&nbsp;s</strong>&nbsp;≈&nbsp;9000 frames. Default 300&nbsp;s (a full-length song).</p>
+
+      <p id="form-error" class="warn" role="alert" hidden></p>
+      <div class="row">
+        <button id="generate" type="button" class="primary">Generate</button>
+        <button id="cancel" type="button" hidden>Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT COLUMN: live Status on top (stays visible without scrolling), the On disk library below it -->
+  <div class="col-right">
+    <!-- STATUS + RESULT: kept on top so the generation status stays visible even with a long On disk list -->
+    <section class="panel" aria-labelledby="status-h">
+      <h2 id="status-h">Status</h2>
+      <p id="status" class="status" aria-live="polite">Idle — nothing submitted yet.</p>
+      <p id="status-cause" class="hint" aria-live="polite"></p>
+      <div id="progress" class="progress" hidden>
+        <span id="elapsed" class="elapsed" aria-live="polite"></span>
+        <span id="eta" class="eta" aria-live="polite"></span>
+      </div>
+
+      <h3>Result</h3>
+      <p id="result-empty" class="hint">No result yet.</p>
+      <p id="result-delivered" class="delivered" hidden></p>
+      <p><a id="result-download" href="#" download hidden>Download this result</a></p>
+      <div id="result-params" class="params" hidden></div>
+    </section>
+
+    <!-- ON DISK: the newest generated output is the first row; its Play button is the primary control -->
+    <section class="panel" aria-labelledby="disk-h">
+      <h2 id="disk-h">On disk <span class="hint">(newest first)</span></h2>
+      <div class="filter">
+        <label for="artifact-filter">Filter</label>
+        <input id="artifact-filter" type="search" autocomplete="off"
+          placeholder="Filter by id, caption, seed…" aria-controls="artifact-list">
+      </div>
+      <p id="artifact-empty" class="hint" hidden>No artifacts on disk yet.</p>
+      <p id="artifact-none" class="hint" role="status" hidden>No artifacts match the filter.</p>
+      <ul id="artifact-list" class="artifacts"></ul>
+    </section>
+  </div>
+</main>
+
+<!-- PLAYER (S4): one persistent sticky mini-player owning the Canvas waveform, the seek affordance and the
+     native <audio> controls. A standalone element — it does NOT touch the grid or the <880px collapse. -->
+<div id="player" class="player" hidden aria-label="Now playing">
+  <div class="player-inner">
+    <canvas id="waveform" class="waveform" role="slider" tabindex="0" aria-label="Seek within the track"
+      aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></canvas>
+    <div class="player-row">
+      <span id="player-title" class="player-title"></span>
+      <span id="player-time" class="player-time" aria-live="off"></span>
+    </div>
+    <p id="player-error" class="player-error" role="alert" hidden></p>
+    <audio id="player-audio" controls preload="none"></audio>
+  </div>
+</div>
+
+<script src="app.js" defer></script>
+</body>
+</html>

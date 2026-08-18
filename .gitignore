@@ -1,0 +1,11 @@
+.work/
+.env
+api/app/__pycache__/
+api/app/routes/__pycache__/
+api/compat/__pycache__/
+api/engines/__pycache__/
+api/engines/sglang/__pycache__/
+api/jobs/__pycache__/
+api/lifecycle/__pycache__/
+api/transcode/__pycache__/
+tests/__pycache__/

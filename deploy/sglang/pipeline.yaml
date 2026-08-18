@@ -1,0 +1,33 @@
+# Session 1 (S1) — SGLang-Omni serving config for MiniMax-Music3, passed as `--config`.
+#
+# This file is BOTH the serving configuration AND the INV-3 backend record (Axis B = B1). The
+# backend actually in force is confirmed from the engine's startup "Merged Configuration" print
+# and recorded in docs/session_1_measurements.md. If an override here is not honored, that is the
+# B3 outcome: recorded, with an INV-3 amendment request raised at GATE-S1 — never a silent accept
+# of auto-selection, and never a quiet weakening of INV-3.
+config_cls: MiniMaxMusic3SingleGPUPipelineConfig   # explicit single-GPU colocation (INV-3, D7)
+model_path: /models/MiniMax-Music3                 # matches the read-only weights mount (INV-2)
+
+runtime_overrides:
+  # AR stage: the sglang engine (Qwen3 backbone decode). This is the sm_120 kernel-hazard stage
+  # (E-11: flashinfer sm_120 correctness bugs; trtllm_mha is SM100-only), so its attention backend
+  # is pinned explicitly to the documented-safest selectable value on sm_120 (E-12).
+  minimax_music3_ar:
+    server_args_overrides:
+      # attention_backend has NO CLI flag (E-07), so this pipeline config is its only home — the
+      # load-bearing INV-3 knob. mem_fraction_static and max_running_requests are set on the serve
+      # CLI instead (--mem-fraction-static / --max-running-requests): the engine rejects a param set
+      # through BOTH server_args_overrides and the typed CLI override, and INV-1 wants the launch
+      # command to carry --max-running-requests 1.
+      attention_backend: triton      # NOT flashinfer / trtllm_mha (open sm_120 bugs / SM100-only) — E-11/E-12
+      quantization: fp8              # post-gate opt v2: fp8 the AR backbone (~16 -> ~8 GB) so the whole backbone
+                                     # stays resident WITHOUT --cpu-offload-gb, while the DIT stays fp32 (keeps
+                                     # acoustic quality). fp8 on an 8B backbone is expected near-lossless; owner re-listens.
+      fp8_gemm_runner_backend: triton  # sm_120-compatible fp8 GEMM kernel (correct ServerArgs field name in sglang
+                                     # 0.5.16; cutlass blockwise fp8 is unsupported on sm120, E-11)
+  # Acoustic stage: flow-matching DIT + DAV. Ships with attention_backend=torch_sdpa already
+  # (sm_120-portable PyTorch SDPA); restated here for the INV-3 record. If the engine rejects this
+  # override key, the shipped torch_sdpa default still stands and is recorded as the backend in force.
+  dit_dav:
+    attention_backend: torch_sdpa    # sm_120-portable; DIT/DAV stays fp32 — bf16 audibly degraded the acoustic
+                                     # rendering after ~3:00 (owner A/B, 2026-08-14), so acoustic precision is kept.

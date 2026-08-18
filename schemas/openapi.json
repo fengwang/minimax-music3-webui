@@ -1,0 +1,688 @@
+{
+  "components": {
+    "schemas": {
+      "BaseResp": {
+        "description": "The MiniMax ``base_resp`` object. At this edge ``status_code`` is 0 (success), 2013 (invalid params),\nor the reserved local-failure code 5000.",
+        "properties": {
+          "status_code": {
+            "examples": [
+              0,
+              2013,
+              5000
+            ],
+            "title": "Status Code",
+            "type": "integer"
+          },
+          "status_msg": {
+            "title": "Status Msg",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status_code",
+          "status_msg"
+        ],
+        "title": "BaseResp",
+        "type": "object"
+      },
+      "ErrorEnvelope": {
+        "description": "A refusal (HTTP 400, code 2013) or a local failure (HTTP 5xx, code 5000): the cloud envelope shape\nwith a null payload.",
+        "properties": {
+          "analysis_info": {
+            "title": "Analysis Info",
+            "type": "null"
+          },
+          "base_resp": {
+            "$ref": "#/components/schemas/BaseResp"
+          },
+          "data": {
+            "title": "Data",
+            "type": "null"
+          },
+          "extra_info": {
+            "title": "Extra Info",
+            "type": "null"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          }
+        },
+        "required": [
+          "base_resp"
+        ],
+        "title": "ErrorEnvelope",
+        "type": "object"
+      },
+      "ExtraInfo": {
+        "description": "Measured from the delivered file (never assumed).",
+        "properties": {
+          "bitrate": {
+            "title": "Bitrate",
+            "type": "integer"
+          },
+          "music_channel": {
+            "title": "Music Channel",
+            "type": "integer"
+          },
+          "music_duration": {
+            "title": "Music Duration",
+            "type": "number"
+          },
+          "music_sample_rate": {
+            "title": "Music Sample Rate",
+            "type": "integer"
+          },
+          "music_size": {
+            "title": "Music Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "music_duration",
+          "music_sample_rate",
+          "music_channel",
+          "bitrate",
+          "music_size"
+        ],
+        "title": "ExtraInfo",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "MusicData": {
+        "properties": {
+          "audio": {
+            "description": "hex-encoded audio, or a URL to GET /v1/music_generation/result/{trace_id}",
+            "title": "Audio",
+            "type": "string"
+          },
+          "status": {
+            "description": "2 = completed",
+            "examples": [
+              2
+            ],
+            "title": "Status",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "audio",
+          "status"
+        ],
+        "title": "MusicData",
+        "type": "object"
+      },
+      "MusicGenerationResponse": {
+        "properties": {
+          "analysis_info": {
+            "title": "Analysis Info",
+            "type": "null"
+          },
+          "base_resp": {
+            "$ref": "#/components/schemas/BaseResp"
+          },
+          "data": {
+            "$ref": "#/components/schemas/MusicData"
+          },
+          "extra_info": {
+            "$ref": "#/components/schemas/ExtraInfo"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "trace_id",
+          "extra_info",
+          "base_resp"
+        ],
+        "title": "MusicGenerationResponse",
+        "type": "object"
+      },
+      "SubmitRequest": {
+        "additionalProperties": false,
+        "description": "The native submission body. ``max_new_tokens`` is capped at the documented ceiling (E-08, E-18).\n\n``extra=\"forbid\"`` rejects any non-native field (a cloud field such as ``model``/``prompt``/\n``audio_setting``, or ``stream``) with HTTP 422 rather than silently discarding it \u2014 cloud-schema\ntranslation is S4's, and S2 must not let an unsupported field appear honoured (INV-7 boundary).",
+        "properties": {
+          "input": {
+            "minLength": 1,
+            "title": "Input",
+            "type": "string"
+          },
+          "instructions": {
+            "minLength": 1,
+            "title": "Instructions",
+            "type": "string"
+          },
+          "max_new_tokens": {
+            "maximum": 9000.0,
+            "minimum": 1.0,
+            "title": "Max New Tokens",
+            "type": "integer"
+          },
+          "seed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input",
+          "instructions",
+          "max_new_tokens"
+        ],
+        "title": "SubmitRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "MiniMax-Music3 API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/artifacts": {
+      "get": {
+        "description": "Newest-first listing of complete artifact directories; empty when nothing is configured/present.",
+        "operationId": "list_artifacts_artifacts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Artifacts Artifacts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Artifacts"
+      }
+    },
+    "/artifacts/{job_id}/{name}": {
+      "get": {
+        "description": "Serve one canonical member of a completed artifact by streaming an O_NOFOLLOW-validated fd; 404 for\na crafted id, a non-member name, an incomplete directory, a symlinked member, or an unknown id.",
+        "operationId": "get_artifact_artifacts__job_id___name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Artifact"
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Return app liveness and the engine's last-known readiness (``ready``/``warming``/``unavailable``).",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/jobs": {
+      "post": {
+        "description": "Accept a native submission, queue it for the single worker, and return the queued job (202).",
+        "operationId": "submit_job_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Submit Job Jobs Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Job"
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "description": "Return the job's current status view, or 404 if the id is unknown.",
+        "operationId": "get_job_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Job Jobs  Job Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job"
+      }
+    },
+    "/jobs/{job_id}/cancel": {
+      "post": {
+        "description": "Cancel a queued or running job (200); 404 if unknown, 409 if already terminal.",
+        "operationId": "cancel_job_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cancel Job Jobs  Job Id  Cancel Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Job"
+      }
+    },
+    "/jobs/{job_id}/events": {
+      "get": {
+        "description": "Stream the job's lifecycle events as SSE, honoring ``Last-Event-ID``; 404 if the id is unknown.",
+        "operationId": "stream_events_jobs__job_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Events"
+      }
+    },
+    "/v1/music_generation": {
+      "post": {
+        "description": "Blocking cloud-compatible music generation (INV-7).\n\nAccepts the MiniMax cloud request envelope, translates it to the local engine, runs one generation on\nthe single slot (INV-1), and returns the cloud response envelope. Every field the local engine cannot\nhonour is refused with base_resp code 2013 (HTTP 400) naming the field, never silently defaulted. A\nlocal-only failure (engine unavailable, cold-start/readiness timeout, transcode failure, artifact write\nfailure) returns the reserved base_resp code 5000 with an HTTP 5xx status, never a cloud client-error\ncode, so an integrating client is not taught to retry a request that can never succeed.\n\nBecause generation is blocking, a client MUST set a read timeout of at least 1200 seconds on an idle\nsystem (F13); with concurrency one a queued caller also waits out any render ahead of it plus a possible\ncold start. output_format hex returns the audio inline as a large single JSON body; output_format url\nreturns a link to GET /v1/music_generation/result/{trace_id}. The WebUI never calls this route (INV-12).",
+        "operationId": "music_generation_v1_music_generation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "audio_setting": {
+                    "properties": {
+                      "bitrate": {
+                        "description": "mp3 only",
+                        "enum": [
+                          32000,
+                          64000,
+                          128000,
+                          256000
+                        ],
+                        "type": "integer"
+                      },
+                      "format": {
+                        "enum": [
+                          "mp3",
+                          "wav",
+                          "pcm"
+                        ],
+                        "type": "string"
+                      },
+                      "sample_rate": {
+                        "enum": [
+                          16000,
+                          24000,
+                          32000,
+                          44100
+                        ],
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "lyrics": {
+                    "description": "lyrics -> engine input",
+                    "maxLength": 3500,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "max_new_tokens": {
+                    "default": 9000,
+                    "description": "additive; acoustic frames at 25 fps",
+                    "maximum": 9000.0,
+                    "minimum": 1.0,
+                    "type": "integer"
+                  },
+                  "model": {
+                    "description": "only music-3.0 is honoured",
+                    "enum": [
+                      "music-3.0"
+                    ],
+                    "type": "string"
+                  },
+                  "output_format": {
+                    "default": "hex",
+                    "enum": [
+                      "hex",
+                      "url"
+                    ],
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "description": "music caption -> engine instructions",
+                    "maxLength": 2000,
+                    "type": "string"
+                  },
+                  "seed": {
+                    "default": 0,
+                    "description": "additive; forwarded to the engine",
+                    "minimum": 0.0,
+                    "type": "integer"
+                  },
+                  "stream": {
+                    "default": false,
+                    "description": "must be false; true is refused (2013)",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "model",
+                  "prompt",
+                  "lyrics"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusicGenerationResponse"
+                }
+              }
+            },
+            "description": "Completed generation; base_resp.status_code 0."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Refused unhonourable field; base_resp.status_code 2013."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Local failure (engine/transcode/write); base_resp.status_code 5000."
+          }
+        },
+        "summary": "Music Generation"
+      }
+    },
+    "/v1/music_generation/result/{trace_id}": {
+      "get": {
+        "description": "Deliver the audio for ``output_format: url``, transcoded on demand from the one stored ``audio.wav``\nper the ``audio_setting`` recorded in that job's sidecar (delivery-model B). Traversal-safe: the id is\nvalidated and both members are opened via ``open_member`` (INV-8). 404 for a crafted, missing,\nincomplete, or non-cloud artifact.",
+        "operationId": "music_result_v1_music_generation_result__trace_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trace_id",
+            "required": true,
+            "schema": {
+              "title": "Trace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "application/octet-stream": {},
+              "audio/mpeg": {},
+              "audio/wav": {}
+            },
+            "description": "Transcoded audio bytes for output_format url."
+          },
+          "404": {
+            "description": "Unknown, incomplete, or non-cloud artifact."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Local delivery failure; base_resp.status_code 5000."
+          }
+        },
+        "summary": "Music Result"
+      }
+    }
+  }
+}
